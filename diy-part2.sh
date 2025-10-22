@@ -20,8 +20,11 @@
 #sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
 
 # 移除 openwrt feeds 自带的核心包
-rm -rf feeds/packages/net/{xray-core,v2ray-core,v2ray-geodata,sing-box}
-git clone https://github.com/sbwml/openwrt_helloworld package/helloworld
+rm -rf feeds/packages/net/{xray-core,v2ray-geodata,sing-box,ipt2socks}
+cp -r feeds/passwall_packages/{xray-core,v2ray-geodata,sing-box,ipt2socks} feeds/packages/net/
+rm -rf feeds/luci/applications/{luci-app-passwall,luci-app-passwall2}
+cp -r feeds/passwall/luci-app-passwall feeds/luci/applications
+cp -r feeds/passwall2/luci-app-passwall2 feeds/luci/applications
 
 # 更新 golang 1.25 版本
 rm -rf feeds/packages/lang/golang
