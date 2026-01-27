@@ -88,6 +88,15 @@ jobs:
       run: |
         sudo rm -rf /etc/apt/sources.list.d/* /usr/share/dotnet /usr/local/lib/android /opt/ghc /opt/hostedtoolcache/CodeQL
         sudo docker image prune --all --force
+
+        echo "Relocate apt cache to large workspace disk"
+        sudo mkdir -p /home/runner/work/apt-cache/archives/partial
+        sudo rm -rf /var/cache/apt
+        sudo ln -s /home/runner/work/apt-cache /var/cache/apt
+        sudo chmod -R 777 /home/runner/work/apt-cache
+
+        df -hT / /var/cache/apt /home/runner/work || true
+        
         sudo -E apt-get -qq update
         sudo -E apt-get -qq install $(curl -fsSL raw.githubusercontent.com/wekingchen/my-file/master/depends-ubuntuLTS)
         sudo -E apt-get -qq autoremove --purge
