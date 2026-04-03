@@ -26,9 +26,9 @@ rm -rf feeds/luci/applications/{luci-app-passwall,luci-app-passwall2}
 cp -r feeds/passwall/luci-app-passwall feeds/luci/applications
 cp -r feeds/passwall2/luci-app-passwall2 feeds/luci/applications
 
-# 更新 golang 1.25 版本
+# 更新 golang 1.26 版本
 rm -rf feeds/packages/lang/golang
-git clone https://github.com/sbwml/packages_lang_golang -b 25.x feeds/packages/lang/golang
+git clone https://github.com/sbwml/packages_lang_golang -b 26.x feeds/packages/lang/golang
 
 # 修改frp版本为官网最新v0.66.0 https://github.com/fatedier/frp 格式：https://codeload.github.com/fatedier/frp/tar.gz/v${PKG_VERSION}?
 rm -rf feeds/packages/net/frp
