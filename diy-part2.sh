@@ -17,15 +17,6 @@ if [ -f "$GN_MAKEFILE" ] && ! grep -q 'CC=gcc-12 CXX=g++-12 AR=ar' "$GN_MAKEFILE
     sed -i '/$(PYTHON).*build\/gen.py/ s|$(PYTHON)|CC=gcc-12 CXX=g++-12 AR=ar $(PYTHON)|' "$GN_MAKEFILE"
 fi
 
-# Modify default IP
-#sed -i 's/192.168.1.1/192.168.50.5/g' package/base-files/files/bin/config_generate
-
-# Modify default theme
-#sed -i 's/luci-theme-bootstrap/luci-theme-argon/g' feeds/luci/collections/luci/Makefile
-
-# Modify hostname
-#sed -i 's/OpenWrt/P3TERX-Router/g' package/base-files/files/bin/config_generate
-
 # 移除 openwrt feeds 自带的核心包
 rm -rf feeds/packages/net/{xray-core,v2ray-geodata,sing-box,ipt2socks}
 cp -r feeds/passwall_packages/{xray-core,v2ray-geodata,sing-box,ipt2socks} feeds/packages/net/
@@ -37,19 +28,37 @@ cp -r feeds/passwall2/luci-app-passwall2 feeds/luci/applications
 rm -rf feeds/packages/lang/golang
 git clone https://github.com/sbwml/packages_lang_golang -b 27.x feeds/packages/lang/golang
 
-# 修改frp版本为官网最新v0.68.1 https://github.com/fatedier/frp 格式：https://codeload.github.com/fatedier/frp/tar.gz/v${PKG_VERSION}?
-rm -rf feeds/packages/net/frp
-wget https://github.com/coolsnowwolf/packages/archive/0f7be9fc93d68986c179829d8199824d3183eb60.zip -O OldPackages.zip
-unzip OldPackages.zip
-cp -r packages-0f7be9fc93d68986c179829d8199824d3183eb60/net/frp feeds/packages/net/
-rm -rf OldPackages.zip packages-0f7be9fc93d68986c179829d8199824d3183eb60
-sed -i 's/PKG_VERSION:=0.53.2/PKG_VERSION:=0.68.1/' feeds/packages/net/frp/Makefile
-sed -i 's/PKG_HASH:=ff2a4f04e7732bc77730304e48f97fdd062be2b142ae34c518ab9b9d7a3b32ec/PKG_HASH:=44ed7107bf35e4f68dc0e77cd5805102effa5301528b89ee5ab0ab379088edc6/' feeds/packages/net/frp/Makefile
+# 自动更新 FRP 到官方最新稳定版
+FRP_DIR="feeds/packages/net/frp"
+FRP_MAKEFILE="$FRP_DIR/Makefile"
 
-# 修正fullconenat-nft编译问题
-# sed -i -E 's/KERNEL_VERSION\s*\(\s*6\s*,\s*12\s*,\s*0\s*\)/KERNEL_VERSION(6, 6, 0)/g' \
-# package/network/services/fullconenat-nft/patches/010-fix-build-with-kernel-6.12.patch
-# sed -i -E 's/\b6\.12\b/6.6/g' \
-# package/network/services/fullconenat-nft/patches/010-fix-build-with-kernel-6.12.patch
-# mv package/network/services/fullconenat-nft/patches/010-fix-build-with-kernel-6.12.patch \
-#    package/network/services/fullconenat-nft/patches/010-fix-build-with-kernel-6.6.patch
+FRP_VERSION="$(
+    git ls-remote --tags --refs https://github.com/fatedier/frp.git \
+    | sed -n 's#.*refs/tags/v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$#\1#p' \
+    | sort -V \
+    | tail -1
+)"
+
+curl -fL "https://codeload.github.com/fatedier/frp/tar.gz/v${FRP_VERSION}" \
+    -o /tmp/frp.tar.gz
+
+FRP_HASH="$(sha256sum /tmp/frp.tar.gz | cut -d' ' -f1)"
+
+sed -i -E "s/^PKG_VERSION:=.*/PKG_VERSION:=${FRP_VERSION}/" "$FRP_MAKEFILE"
+sed -i -E "s/^PKG_HASH:=.*/PKG_HASH:=${FRP_HASH}/" "$FRP_MAKEFILE"
+
+# FRP 0.68.0+ 官方支持 noweb
+if grep -q '^GO_PKG_TAGS:=' "$FRP_MAKEFILE"; then
+    sed -i -E 's/^GO_PKG_TAGS:=.*/GO_PKG_TAGS:=noweb/' "$FRP_MAKEFILE"
+else
+    sed -i '/^GO_PKG_BUILD_PKG:=/a GO_PKG_TAGS:=noweb' "$FRP_MAKEFILE"
+fi
+
+# 当前旧版 OpenWrt recipe 会强制执行 npm/Web 编译，
+# noweb 模式下改为只执行 Go 编译
+sed -i '/^define Build\/Compile$/,/^endef$/c\
+define Build/Compile\
+	$(call GoPackage/Build/Compile)\
+endef' "$FRP_MAKEFILE"
+
+rm -f /tmp/frp.tar.gz
